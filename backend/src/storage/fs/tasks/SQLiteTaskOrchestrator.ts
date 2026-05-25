@@ -1,10 +1,18 @@
-/**
- * SQLite 通用任务编排器实现 (Docker/Node.js 环境)
+﻿/**
+ * SQLite 閫氱敤浠诲姟缂栨帓鍣ㄥ疄鐜?(Docker/Node.js 鐜)
  *
  *
  */
 
-import Database from 'better-sqlite3';
+// EdgeOne 构建时跳过 better-sqlite3（仅在 Docker/Node.js 环境运行）
+let Database = null;
+try {
+  // 使用 Function 构造器绕过 esbuild 静态分析
+  Database = new Function("return require('better-sqlite3')")();
+} catch {
+  // EdgeOne 环境，此路径不会被执行
+  Database = null;
+}
 import { DbTables } from '../../../constants/index.js';
 import { taskRegistry } from './TaskRegistry.js';
 import type { TaskHandler, InternalJob, ExecutionContext } from './TaskHandler.js';
@@ -24,40 +32,36 @@ export class SQLiteTaskOrchestrator implements TaskOrchestratorAdapter {
   private fileSystem: any;
 
   constructor(
-    fileSystem: any,  // FileSystem 实例 (从工厂传入)
-    private dbPath: string = './data/database.db',  // 现有 D1 兼容 SQLite 数据库路径
-    private concurrency: number = 10  // Worker Pool 并发数
-  ) {
+    fileSystem: any,  // FileSystem 瀹炰緥 (浠庡伐鍘備紶鍏?
+    private dbPath: string = './data/database.db',  // 鐜版湁 D1 鍏煎 SQLite 鏁版嵁搴撹矾寰?    private concurrency: number = 10  // Worker Pool 骞跺彂鏁?  ) {
     this.fileSystem = fileSystem;
-    // 初始化 SQLite 连接 (tasks 表已由 database.js migration case 25 创建)
+    // 鍒濆鍖?SQLite 杩炴帴 (tasks 琛ㄥ凡鐢?database.js migration case 25 鍒涘缓)
     this.db = new Database(dbPath);
 
-    // PRAGMA 优化
-    this.db.pragma('journal_mode = WAL');      // 并发读性能
-    this.db.pragma('synchronous = 1');         // 事务速度 (NORMAL 模式)
-    this.db.pragma('busy_timeout = 5000');     // 5秒重试超时,避免 SQLITE_BUSY 错误
+    // PRAGMA 浼樺寲
+    this.db.pragma('journal_mode = WAL');      // 骞跺彂璇绘€ц兘
+    this.db.pragma('synchronous = 1');         // 浜嬪姟閫熷害 (NORMAL 妯″紡)
+    this.db.pragma('busy_timeout = 5000');     // 5绉掗噸璇曡秴鏃?閬垮厤 SQLITE_BUSY 閿欒
 
-    // 启动时恢复 pending/running 作业 (崩溃恢复)
+    // 鍚姩鏃舵仮澶?pending/running 浣滀笟 (宕╂簝鎭㈠)
     this.recoverJobs();
 
-    // 启动内存 Worker Pool
+    // 鍚姩鍐呭瓨 Worker Pool
     this.startWorkers();
 
     console.log(
-      `[SQLiteTaskOrchestrator] 已启动 (并发数: ${concurrency}, 数据库: ${dbPath})`
+      `[SQLiteTaskOrchestrator] 宸插惎鍔?(骞跺彂鏁? ${concurrency}, 鏁版嵁搴? ${dbPath})`
     );
   }
 
   /**
-   * 更新 FileSystem 实例引用（单例模式下每次请求可能传入不同实例）
-   */
+   * 鏇存柊 FileSystem 瀹炰緥寮曠敤锛堝崟渚嬫ā寮忎笅姣忔璇锋眰鍙兘浼犲叆涓嶅悓瀹炰緥锛?   */
   updateFileSystem(fileSystem: any): void {
     this.fileSystem = fileSystem;
   }
 
   /**
-   * 创建任意类型的作业
-   */
+   * 鍒涘缓浠绘剰绫诲瀷鐨勪綔涓?   */
   async createJob(params: CreateJobParams): Promise<JobDescriptor> {
     const {
       taskType,
@@ -70,19 +74,18 @@ export class SQLiteTaskOrchestrator implements TaskOrchestratorAdapter {
     const triggerType = triggerTypeRaw ?? 'manual';
     const triggerRef = triggerRefRaw ?? null;
 
-    // 验证任务类型并获取处理器
+    // 楠岃瘉浠诲姟绫诲瀷骞惰幏鍙栧鐞嗗櫒
     const handler = taskRegistry.getHandler(taskType);
     await handler.validate(payload);
 
-    // 生成作业 ID (带任务类型前缀)
+    // 鐢熸垚浣滀笟 ID (甯︿换鍔＄被鍨嬪墠缂€)
     const jobId = this.generateJobId(taskType);
     const now = Date.now();
 
-    // 创建初始统计模板
+    // 鍒涘缓鍒濆缁熻妯℃澘
     const stats = handler.createStatsTemplate(payload);
 
-    // 插入数据库
-    this.db.prepare(`
+    // 鎻掑叆鏁版嵁搴?    this.db.prepare(`
       INSERT INTO ${DbTables.TASKS} (
         task_id, task_type, status, payload, stats,
         user_id, user_type,
@@ -92,8 +95,7 @@ export class SQLiteTaskOrchestrator implements TaskOrchestratorAdapter {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       jobId,
-      taskType,  // 动态任务类型
-      'pending',
+      taskType,  // 鍔ㄦ€佷换鍔＄被鍨?      'pending',
       JSON.stringify(payload),
       JSON.stringify(stats),
       userId,
@@ -105,7 +107,7 @@ export class SQLiteTaskOrchestrator implements TaskOrchestratorAdapter {
     );
 
     console.log(
-      `[SQLiteTaskOrchestrator] 已创建作业 ${jobId} (任务类型: ${taskType})`
+      `[SQLiteTaskOrchestrator] 宸插垱寤轰綔涓?${jobId} (浠诲姟绫诲瀷: ${taskType})`
     );
 
     return {
@@ -121,11 +123,9 @@ export class SQLiteTaskOrchestrator implements TaskOrchestratorAdapter {
   }
 
   /**
-   * 获取作业状态
-   */
+   * 鑾峰彇浣滀笟鐘舵€?   */
   async getJobStatus(jobId: string): Promise<JobStatus> {
-    // JOIN api_keys 表获取密钥名称
-    const row = this.db.prepare(`
+    // JOIN api_keys 琛ㄨ幏鍙栧瘑閽ュ悕绉?    const row = this.db.prepare(`
       SELECT 
         t.*,
         ak.name as key_name
@@ -135,7 +135,7 @@ export class SQLiteTaskOrchestrator implements TaskOrchestratorAdapter {
     `).get(jobId) as any;
 
     if (!row) {
-      throw new Error(`作业 ${jobId} 不存在`);
+      throw new Error(`浣滀笟 ${jobId} 涓嶅瓨鍦╜);
     }
 
     const payload = JSON.parse(row.payload);
@@ -148,18 +148,17 @@ export class SQLiteTaskOrchestrator implements TaskOrchestratorAdapter {
       createdAt: new Date(row.created_at),
       startedAt: row.started_at ? new Date(row.started_at) : undefined,
       finishedAt: row.finished_at ? new Date(row.finished_at) : undefined,
-      updatedAt: new Date(row.updated_at),  // 新增: 最后更新时间
-      errorMessage: row.error_message || undefined,
+      updatedAt: new Date(row.updated_at),  // 鏂板: 鏈€鍚庢洿鏂版椂闂?      errorMessage: row.error_message || undefined,
       payload,
       userId: row.user_id,
-      keyName: row.key_name || null,  // API 密钥名称
+      keyName: row.key_name || null,  // API 瀵嗛挜鍚嶇О
       triggerType: row.trigger_type || 'manual',
       triggerRef: row.trigger_ref ?? null,
     };
   }
 
   /**
-   * 取消作业
+   * 鍙栨秷浣滀笟
    */
   async cancelJob(jobId: string): Promise<void> {
     const result = this.db.prepare(`
@@ -173,14 +172,14 @@ export class SQLiteTaskOrchestrator implements TaskOrchestratorAdapter {
     );
 
     if (result.changes === 0) {
-      throw new Error('作业不存在或已完成,无法取消');
+      throw new Error('浣滀笟涓嶅瓨鍦ㄦ垨宸插畬鎴?鏃犳硶鍙栨秷');
     }
 
-    console.log(`[SQLiteTaskOrchestrator] 已取消作业 ${jobId}`);
+    console.log(`[SQLiteTaskOrchestrator] 宸插彇娑堜綔涓?${jobId}`);
   }
 
   /**
-   * 列出作业 (支持任务类型过滤)
+   * 鍒楀嚭浣滀笟 (鏀寔浠诲姟绫诲瀷杩囨护)
    */
   async listJobs(filter?: JobFilter): Promise<JobListResult> {
     let whereClause = 'WHERE 1=1';
@@ -243,10 +242,9 @@ export class SQLiteTaskOrchestrator implements TaskOrchestratorAdapter {
       createdAt: new Date(row.created_at),
       startedAt: row.started_at ? new Date(row.started_at) : undefined,
       finishedAt: row.finished_at ? new Date(row.finished_at) : undefined,
-      updatedAt: new Date(row.updated_at),  // 新增: 最后更新时间
-      payload: JSON.parse(row.payload),
+      updatedAt: new Date(row.updated_at),  // 鏂板: 鏈€鍚庢洿鏂版椂闂?      payload: JSON.parse(row.payload),
       userId: row.user_id,
-      keyName: row.key_name || null,  // API 密钥名称
+      keyName: row.key_name || null,  // API 瀵嗛挜鍚嶇О
       triggerType: row.trigger_type || 'manual',
       triggerRef: row.trigger_ref ?? null,
     }));
@@ -255,7 +253,7 @@ export class SQLiteTaskOrchestrator implements TaskOrchestratorAdapter {
   }
 
   /**
-   * 删除作业
+   * 鍒犻櫎浣滀笟
    */
   async deleteJob(jobId: string): Promise<void> {
     const row = this.db.prepare(`
@@ -263,24 +261,24 @@ export class SQLiteTaskOrchestrator implements TaskOrchestratorAdapter {
     `).get(jobId) as any;
 
     if (!row) {
-      throw new Error(`作业 ${jobId} 不存在`);
+      throw new Error(`浣滀笟 ${jobId} 涓嶅瓨鍦╜);
     }
 
     if (row.status === TaskStatus.PENDING || row.status === TaskStatus.RUNNING) {
-      throw new Error(`不能删除运行中的作业 ${jobId},请先取消`);
+      throw new Error(`涓嶈兘鍒犻櫎杩愯涓殑浣滀笟 ${jobId},璇峰厛鍙栨秷`);
     }
 
     this.db.prepare(`
       DELETE FROM ${DbTables.TASKS} WHERE task_id = ?
     `).run(jobId);
 
-    console.log(`[SQLiteTaskOrchestrator] 已删除作业 ${jobId}`);
+    console.log(`[SQLiteTaskOrchestrator] 宸插垹闄や綔涓?${jobId}`);
   }
 
-  // ==================== 内部方法 ====================
+  // ==================== 鍐呴儴鏂规硶 ====================
 
   /**
-   * 启动内存 Worker Pool
+   * 鍚姩鍐呭瓨 Worker Pool
    */
   private startWorkers(): void {
     this.running = true;
@@ -289,42 +287,38 @@ export class SQLiteTaskOrchestrator implements TaskOrchestratorAdapter {
       this.workers.push(this.workerLoop());
     }
 
-    console.log(`[SQLiteTaskOrchestrator] 已启动 ${this.concurrency} 个 Worker`);
+    console.log(`[SQLiteTaskOrchestrator] 宸插惎鍔?${this.concurrency} 涓?Worker`);
   }
 
   /**
-   * Worker 循环 (持续运行直到 orchestrator 停止)
-   * 使用指数退避策略优化空闲轮询：初始 500ms，每次空闲翻倍，最大 8 秒
-   */
+   * Worker 寰幆 (鎸佺画杩愯鐩村埌 orchestrator 鍋滄)
+   * 浣跨敤鎸囨暟閫€閬跨瓥鐣ヤ紭鍖栫┖闂茶疆璇細鍒濆 500ms锛屾瘡娆＄┖闂茬炕鍊嶏紝鏈€澶?8 绉?   */
   private async workerLoop(): Promise<void> {
-    const MIN_POLL_INTERVAL = 500;   // 初始轮询间隔 500ms
-    const MAX_POLL_INTERVAL = 8000; // 最大轮询间隔 8 秒
-    let currentInterval = MIN_POLL_INTERVAL;
+    const MIN_POLL_INTERVAL = 500;   // 鍒濆杞闂撮殧 500ms
+    const MAX_POLL_INTERVAL = 8000; // 鏈€澶ц疆璇㈤棿闅?8 绉?    let currentInterval = MIN_POLL_INTERVAL;
 
     while (this.running) {
-      // 原子获取下一个待执行作业
+      // 鍘熷瓙鑾峰彇涓嬩竴涓緟鎵ц浣滀笟
       const job = this.getNextJob();
 
       if (job) {
-        // 有作业时重置轮询间隔
+        // 鏈変綔涓氭椂閲嶇疆杞闂撮殧
         currentInterval = MIN_POLL_INTERVAL;
         await this.processJob(job);
       } else {
-        // 无待处理作业，使用指数退避休眠
-        await new Promise(resolve => setTimeout(resolve, currentInterval));
-        // 指数增长，但不超过最大值
-        currentInterval = Math.min(currentInterval * 2, MAX_POLL_INTERVAL);
+        // 鏃犲緟澶勭悊浣滀笟锛屼娇鐢ㄦ寚鏁伴€€閬夸紤鐪?        await new Promise(resolve => setTimeout(resolve, currentInterval));
+        // 鎸囨暟澧為暱锛屼絾涓嶈秴杩囨渶澶у€?        currentInterval = Math.min(currentInterval * 2, MAX_POLL_INTERVAL);
       }
     }
   }
 
   /**
-   * 原子获取下一个待执行作业并标记为 running
+   * 鍘熷瓙鑾峰彇涓嬩竴涓緟鎵ц浣滀笟骞舵爣璁颁负 running
    *
-   * 使用 BEGIN IMMEDIATE TRANSACTION (而非 BEGIN TRANSACTION) 防止死锁
+   * 浣跨敤 BEGIN IMMEDIATE TRANSACTION (鑰岄潪 BEGIN TRANSACTION) 闃叉姝婚攣
    */
   private getNextJob(): InternalJob | null {
-    this.db.exec('BEGIN IMMEDIATE TRANSACTION');  // 关键: IMMEDIATE 避免死锁
+    this.db.exec('BEGIN IMMEDIATE TRANSACTION');  // 鍏抽敭: IMMEDIATE 閬垮厤姝婚攣
 
     try {
       const row = this.db.prepare(`
@@ -337,7 +331,7 @@ export class SQLiteTaskOrchestrator implements TaskOrchestratorAdapter {
       if (row) {
         const now = Date.now();
 
-        // 标记为 running
+        // 鏍囪涓?running
         this.db.prepare(`
           UPDATE ${DbTables.TASKS}
           SET status = ?, started_at = ?, updated_at = ?
@@ -356,7 +350,7 @@ export class SQLiteTaskOrchestrator implements TaskOrchestratorAdapter {
 
         return {
           jobId: row.task_id,
-          taskType: row.task_type,  // 从数据库读取
+          taskType: row.task_type,  // 浠庢暟鎹簱璇诲彇
           payload,
           userId: row.user_id,
           userType: row.user_type,
@@ -374,21 +368,19 @@ export class SQLiteTaskOrchestrator implements TaskOrchestratorAdapter {
   }
 
   /**
-   * 处理作业 (使用 TaskHandler 执行)
+   * 澶勭悊浣滀笟 (浣跨敤 TaskHandler 鎵ц)
    */
   private async processJob(job: InternalJob): Promise<void> {
     console.log(
-      `[SQLiteTaskOrchestrator] 开始处理作业 ${job.jobId} (任务类型: ${job.taskType})`
+      `[SQLiteTaskOrchestrator] 寮€濮嬪鐞嗕綔涓?${job.jobId} (浠诲姟绫诲瀷: ${job.taskType})`
     );
 
     let errorMessage: string | undefined;
 
     try {
-      // 获取任务处理器
-      const handler = taskRegistry.getHandler(job.taskType);
+      // 鑾峰彇浠诲姟澶勭悊鍣?      const handler = taskRegistry.getHandler(job.taskType);
 
-      // 创建执行上下文
-      const context: ExecutionContext = {
+      // 鍒涘缓鎵ц涓婁笅鏂?      const context: ExecutionContext = {
         isCancelled: async (jobId: string) => {
           const row = this.db.prepare(`
             SELECT status FROM ${DbTables.TASKS} WHERE task_id = ?
@@ -419,38 +411,36 @@ export class SQLiteTaskOrchestrator implements TaskOrchestratorAdapter {
         getEnv: () => ({ db: this.db }),
       };
 
-      // 执行任务 (委托给 TaskHandler)
+      // 鎵ц浠诲姟 (濮旀墭缁?TaskHandler)
       await handler.execute(job, context);
     } catch (error: any) {
       errorMessage = error.message || String(error);
       console.error(
-        `[SQLiteTaskOrchestrator] 作业 ${job.jobId} 执行失败:`,
+        `[SQLiteTaskOrchestrator] 浣滀笟 ${job.jobId} 鎵ц澶辫触:`,
         error
       );
     }
 
-    // 检查最终状态 (可能已被取消)
+    // 妫€鏌ユ渶缁堢姸鎬?(鍙兘宸茶鍙栨秷)
     const finalRow = this.db.prepare(`
       SELECT status, stats FROM ${DbTables.TASKS} WHERE task_id = ?
     `).get(job.jobId) as any;
 
     if (finalRow.status === TaskStatus.CANCELLED) {
       console.log(
-        `[SQLiteTaskOrchestrator] 作业 ${job.jobId} 已被用户取消,保持 cancelled 状态`
+        `[SQLiteTaskOrchestrator] 浣滀笟 ${job.jobId} 宸茶鐢ㄦ埛鍙栨秷,淇濇寔 cancelled 鐘舵€乣
       );
       return;
     }
 
-    // 根据统计结果确定最终状态
-    const finalStats = JSON.parse(finalRow.stats) as TaskStats;
+    // 鏍规嵁缁熻缁撴灉纭畾鏈€缁堢姸鎬?    const finalStats = JSON.parse(finalRow.stats) as TaskStats;
     const finalStatus: TaskStatus =
       errorMessage ? TaskStatus.FAILED :
       finalStats.failedCount === 0 ? TaskStatus.COMPLETED :
       finalStats.successCount === 0 ? TaskStatus.FAILED :
       TaskStatus.PARTIAL;
 
-    // 更新最终状态
-    this.db.prepare(`
+    // 鏇存柊鏈€缁堢姸鎬?    this.db.prepare(`
       UPDATE ${DbTables.TASKS}
       SET status = ?, finished_at = ?, updated_at = ?, error_message = ?
       WHERE task_id = ?
@@ -463,12 +453,12 @@ export class SQLiteTaskOrchestrator implements TaskOrchestratorAdapter {
     );
 
     console.log(
-      `[SQLiteTaskOrchestrator] 作业 ${job.jobId} 执行完成 (最终状态: ${finalStatus})`
+      `[SQLiteTaskOrchestrator] 浣滀笟 ${job.jobId} 鎵ц瀹屾垚 (鏈€缁堢姸鎬? ${finalStatus})`
     );
   }
 
   /**
-   * 崩溃恢复: 启动时恢复 pending/running 作业
+   * 宕╂簝鎭㈠: 鍚姩鏃舵仮澶?pending/running 浣滀笟
    */
   private recoverJobs(): void {
     const rows = this.db.prepare(`
@@ -491,15 +481,15 @@ export class SQLiteTaskOrchestrator implements TaskOrchestratorAdapter {
 
     if (rows.length > 0) {
       console.log(
-        `[SQLiteTaskOrchestrator] 已恢复 ${rows.length} 个待处理作业 ` +
-          `(任务类型: ${[...new Set(rows.map(r => r.task_type))].join(', ')})`
+        `[SQLiteTaskOrchestrator] 宸叉仮澶?${rows.length} 涓緟澶勭悊浣滀笟 ` +
+          `(浠诲姟绫诲瀷: ${[...new Set(rows.map(r => r.task_type))].join(', ')})`
       );
     }
   }
 
   /**
-   * 生成唯一作业 ID (格式: taskType-YYMMDDHHMM-random6)
-   * 示例: copy-2512011430-a3f5g7
+   * 鐢熸垚鍞竴浣滀笟 ID (鏍煎紡: taskType-YYMMDDHHMM-random6)
+   * 绀轰緥: copy-2512011430-a3f5g7
    */
   private generateJobId(taskType: string): string {
     const now = new Date();
@@ -509,18 +499,18 @@ export class SQLiteTaskOrchestrator implements TaskOrchestratorAdapter {
     const hour = now.getHours().toString().padStart(2, '0'); // 14
     const minute = now.getMinutes().toString().padStart(2, '0'); // 30
     const timeStr = `${year}${month}${day}${hour}${minute}`; // 2512011430
-    const random = Math.random().toString(36).substring(2, 8); // 6位随机码
+    const random = Math.random().toString(36).substring(2, 8); // 6浣嶉殢鏈虹爜
     return `${taskType}-${timeStr}-${random}`;
   }
 
   /**
-   * 优雅关闭 orchestrator (停止 Worker,关闭数据库)
+   * 浼橀泤鍏抽棴 orchestrator (鍋滄 Worker,鍏抽棴鏁版嵁搴?
    */
   async shutdown(): Promise<void> {
-    console.log('[SQLiteTaskOrchestrator] 正在关闭...');
+    console.log('[SQLiteTaskOrchestrator] 姝ｅ湪鍏抽棴...');
     this.running = false;
     await Promise.all(this.workers);
     this.db.close();
-    console.log('[SQLiteTaskOrchestrator] 已关闭');
+    console.log('[SQLiteTaskOrchestrator] 宸插叧闂?);
   }
 }

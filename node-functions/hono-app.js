@@ -22,10 +22,10 @@ async function createApp() {
     const fsMetaRoutes = (await import("./routes/fsMetaRoutes.js")).default;
     const { DbTables, ApiStatus, UserType } = await import("./constants/index.js");
     const { createErrorResponse, jsonOk } = await import("./utils/common.js");
-    const filesRoutes = (await import("./routes/[[filesRoutes]].js")).default;
+    const filesRoutes = (await import("./routes/filesRoutes.js")).default;
     const shareUploadRoutes = (await import("./routes/shareUploadRoutes.js")).default;
-    const pastesRoutes = (await import("./routes/[[pastesRoutes]].js")).default;
-    const fileViewRoutes = (await import("./routes/[[fileViewRoutes]].js")).default;
+    const pastesRoutes = (await import("./routes/pastesRoutes.js")).default;
+    const fileViewRoutes = (await import("./routes/fileViewRoutes.js")).default;
     const { fsProxyRoutes } = await import("./routes/fsProxyRoutes.js");
     const { proxyLinkRoutes } = await import("./routes/proxyLinkRoutes.js");
     const scheduledRoutes = (await import("./routes/scheduledRoutes.js")).default;
