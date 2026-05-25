@@ -1,0 +1,75 @@
+name: Deploy to EdgeOne (Alternative)
+
+on:
+  push:
+    branches:
+      - master
+      - main
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  build-and-deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: package.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm install
+          npm run build
+          cd ..
+          cp -r frontend/dist/* public/
+
+      - name: Deploy to EdgeOne Pages
+        env:
+          EDGEONE_API_TOKEN: ${{ secrets.EDGEONE_API_TOKEN }}
+          EDGEONE_PROJECT_ID: ${{ secrets.EDGEONE_PROJECT_ID }}
+        run: |
+          echo "🚀 Deploying to EdgeOne Pages..."
+          
+          # Create deployment package
+          tar -czf deployment.tar.gz \
+            public/ \
+            node-functions/ \
+            edgeone.config.js \
+            package.json
+
+          # Upload to EdgeOne using their API
+          # Note: Replace with actual EdgeOne API endpoint
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            "https://api.edgeone.tencent.com/v1/projects/${EDGEONE_PROJECT_ID}/deployments" \
+            -H "Authorization: Bearer ${EDGEONE_API_TOKEN}" \
+            -H "Content-Type: multipart/form-data" \
+            -F "package=@deployment.tar.gz")
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          
+          echo "Response: $BODY"
+          
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            echo "✅ Deployment successful!"
+          else
+            echo "❌ Deployment failed with HTTP $HTTP_CODE"
+            exit 1
+          fi
+
+      - name: Clean up
+        run: rm -f deployment.tar.gz

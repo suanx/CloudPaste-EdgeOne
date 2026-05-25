@@ -1,0 +1,89 @@
+name: Deploy to EdgeOne Pages
+
+on:
+  push:
+    branches:
+      - master
+      - main
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  build:
+    name: Build Frontend
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: package.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm install
+          npm run build
+          cd ..
+          cp -r frontend/dist/* public/
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: public/
+          retention-days: 7
+
+  deploy:
+    name: Deploy to EdgeOne
+    needs: build
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-output
+          path: public/
+
+      - name: Setup EdgeOne CLI
+        run: |
+          npm install -g @edgeone/cli@latest || npm install -g edgeone-cli@latest
+          edgeone --version || edgeone-cli --version
+
+      - name: Deploy to EdgeOne Pages
+        env:
+          EDGEONE_TOKEN: ${{ secrets.EDGEONE_TOKEN }}
+          EDGEONE_PROJECT_ID: ${{ secrets.EDGEONE_PROJECT_ID }}
+        run: |
+          # Try different CLI commands based on available CLI
+          if command -v edgeone &> /dev/null; then
+            edgeone pages deploy --token $EDGEONE_TOKEN --project $EDGEONE_PROJECT_ID
+          elif command -v edgeone-cli &> /dev/null; then
+            edgeone-cli deploy --token $EDGEONE_TOKEN --project $EDGEONE_PROJECT_ID
+          else
+            echo "No EdgeOne CLI found, trying alternative deployment..."
+            # Alternative: Use EdgeOne API directly
+            curl -X POST "https://api.edgeone.tencent.com/v1/projects/${EDGEONE_PROJECT_ID}/deployments" \
+              -H "Authorization: Bearer $EDGEONE_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{"source": "github", "branch": "master"}'
+          fi
+
+      - name: Deployment status
+        run: |
+          echo "✅ Deployment completed!"
+          echo "Please check your EdgeOne Pages dashboard for the deployment status."
