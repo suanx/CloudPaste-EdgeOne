@@ -452,7 +452,9 @@ export default defineConfig(({ command, mode }) => {
       },
       // 提高警告阈值以减少噪音（仍建议拆分大依赖）
       chunkSizeWarningLimit: 2000,
+      // 内存优化：减少并发
       rollupOptions: {
+        concurrency: 1,
         output: {
           // 使用函数按 package 名称拆分 node_modules，避免单个 chunk 过大
           manualChunks(id) {

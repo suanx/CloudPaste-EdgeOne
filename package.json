@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "edgeone pages dev",
     "deploy": "edgeone pages deploy",
-    "build:frontend": "cd frontend && npm install && npm run build && cd .. && cp -r frontend/dist/* public/",
+    "build:frontend": "cd frontend && npm install && NODE_OPTIONS=\"--max-old-space-size=4096\" npm run build && cd .. && cp -r frontend/dist/* public/",
     "prepare": "npm run build:frontend"
   },
   "keywords": [
