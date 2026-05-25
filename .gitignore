@@ -110,3 +110,19 @@ out
 .spec-workflowbackend/test-logger.js
 node_modules/
 tmp*-cwd
+
+# EdgeOne function code - imported via ../backend/src/ in hono-app.js
+node-functions/adapters/
+node-functions/cache/
+node-functions/constants/
+node-functions/db/
+node-functions/http/
+node-functions/repositories/
+node-functions/routes/
+node-functions/scheduled/
+node-functions/security/
+node-functions/services/
+node-functions/storage/
+node-functions/utils/
+node-functions/webdav/
+node-functions/workflows/

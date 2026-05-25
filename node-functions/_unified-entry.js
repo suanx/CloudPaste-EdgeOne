@@ -5,15 +5,15 @@
 
 // 顶层导入仅包含跨环境可用的模块（Hono 应用与公共工具）
 import app from "./hono-app.js";
-import { ApiStatus } from "./constants/index.js";
-import { ensureDatabaseReady } from "./db/index.js";
-import { registerTaskHandlers } from "./storage/fs/tasks/registerHandlers.js";
-import { registerJobTypes, validateJobTypesConsistency } from "./storage/fs/tasks/registerJobTypes.js";
-import { registerScheduledHandlers } from "./scheduled/ScheduledTaskRegistry.js";
-import { runDueScheduledJobs } from "./scheduled/runDueScheduledJobs.js";
-import { upsertSchedulerTickState } from "./services/schedulerTickerStateService.js";
-import { getCloudPlatform } from "./utils/environmentUtils.js";
-import { createLogger } from "./utils/logger.js";
+import { ApiStatus } from "../backend/src/constants/index.js";
+import { ensureDatabaseReady } from "../backend/src/db/index.js";
+import { registerTaskHandlers } from "../backend/src/storage/fs/tasks/registerHandlers.js";
+import { registerJobTypes, validateJobTypesConsistency } from "../backend/src/storage/fs/tasks/registerJobTypes.js";
+import { registerScheduledHandlers } from "../backend/src/scheduled/ScheduledTaskRegistry.js";
+import { runDueScheduledJobs } from "../backend/src/scheduled/runDueScheduledJobs.js";
+import { upsertSchedulerTickState } from "../backend/src/services/schedulerTickerStateService.js";
+import { getCloudPlatform } from "../backend/src/utils/environmentUtils.js";
+import { createLogger } from "../backend/src/utils/logger.js";
 
 // 在模块加载时注册所有任务处理器和调度任务处理器
 registerTaskHandlers();
@@ -60,7 +60,7 @@ async function ensureDbReadyOnce(env) {
       logger.info("检测到 EdgeOne Pages 环境，初始化 MySQL 连接");
 
       // 动态导入 MySQL 适配器（仅在需要时加载）
-      const { createMySQLAdapterFromEnv } = await import(`${"."}/adapters/MySQLAdapter.js`);
+      const { createMySQLAdapterFromEnv } = await import(`${"."}/../backend/src/adapters/MySQLAdapter.js`);
 
       try {
         dbAdapter = await createMySQLAdapterFromEnv(env);
@@ -191,7 +191,7 @@ if (!isCloudflareWorkers) {
       import("fs"),
       import("url"),
       // 动态字符串拼接避免 Wrangler esbuild 静态分析,Workers 环境不会执行此分支
-      import(`${"."}/adapters/SQLiteAdapter.js`),
+      import(`${"."}/../backend/src/adapters/SQLiteAdapter.js`),
     ]);
 
     const __filename = fileURLToPath(import.meta.url);
