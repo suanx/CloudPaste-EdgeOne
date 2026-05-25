@@ -4,13 +4,11 @@
  *
  */
 
-// EdgeOne 构建时跳过 better-sqlite3（仅在 Docker/Node.js 环境运行）
+// EdgeOne build: skip better-sqlite3 (used only in Docker/Node.js, never executed on EdgeOne)
 let Database = null;
 try {
-  // 使用 Function 构造器绕过 esbuild 静态分析
   Database = new Function("return require('better-sqlite3')")();
 } catch {
-  // EdgeOne 环境，此路径不会被执行
   Database = null;
 }
 import { DbTables } from '../../../constants/index.js';
@@ -26,7 +24,7 @@ import { TaskStatus } from './types.js';
 import type { JobFilter, JobListResult, TaskStats } from './types.js';
 
 export class SQLiteTaskOrchestrator implements TaskOrchestratorAdapter {
-  private db: Database.Database;
+  private db: any;
   private workers: Promise<void>[] = [];
   private running = false;
   private fileSystem: any;
