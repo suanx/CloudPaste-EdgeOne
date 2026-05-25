@@ -1,4 +1,11 @@
-name: Deploy to EdgeOne Pages
+# ⚠️ 此 Workflow 不适用于 EdgeOne Pages
+# EdgeOne Pages 不支持 API 部署，仅支持 GitHub 连接自动部署或手动上传
+# 建议使用前后端分离部署方案：
+# - 前端：Cloudflare Pages（免费，构建内存充足）
+# - 后端：EdgeOne Pages（边缘函数 + Turso/MySQL）
+# 详见 DEPLOY_EDGEONE.md
+
+name: ⚠️ Deprecated - EdgeOne Deployment
 
 on:
   push:
@@ -6,9 +13,6 @@ on:
       - master
       - main
   workflow_dispatch:
-
-env:
-  NODE_VERSION: '22'
 
 jobs:
   build:
@@ -22,9 +26,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: '22'
           cache: 'npm'
-          cache-dependency-path: package.json
 
       - name: Install dependencies
         run: npm ci
@@ -45,45 +48,23 @@ jobs:
           retention-days: 7
 
   deploy:
-    name: Deploy to EdgeOne
+    name: Deploy to EdgeOne (NOT WORKING)
     needs: build
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
       - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
           name: build-output
           path: public/
 
-      - name: Setup EdgeOne CLI
+      - name: ⚠️ EdgeOne Pages does not support API deployment
         run: |
-          npm install -g @edgeone/cli@latest || npm install -g edgeone-cli@latest
-          edgeone --version || edgeone-cli --version
-
-      - name: Deploy to EdgeOne Pages
-        env:
-          EDGEONE_TOKEN: ${{ secrets.EDGEONE_TOKEN }}
-          EDGEONE_PROJECT_ID: ${{ secrets.EDGEONE_PROJECT_ID }}
-        run: |
-          # Try different CLI commands based on available CLI
-          if command -v edgeone &> /dev/null; then
-            edgeone pages deploy --token $EDGEONE_TOKEN --project $EDGEONE_PROJECT_ID
-          elif command -v edgeone-cli &> /dev/null; then
-            edgeone-cli deploy --token $EDGEONE_TOKEN --project $EDGEONE_PROJECT_ID
-          else
-            echo "No EdgeOne CLI found, trying alternative deployment..."
-            # Alternative: Use EdgeOne API directly
-            curl -X POST "https://api.edgeone.tencent.com/v1/projects/${EDGEONE_PROJECT_ID}/deployments" \
-              -H "Authorization: Bearer $EDGEONE_TOKEN" \
-              -H "Content-Type: application/json" \
-              -d '{"source": "github", "branch": "master"}'
-          fi
-
-      - name: Deployment status
-        run: |
-          echo "✅ Deployment completed!"
-          echo "Please check your EdgeOne Pages dashboard for the deployment status."
+          echo "❌ EdgeOne Pages 不支持 API 部署"
+          echo "✅ 请使用以下替代方案："
+          echo "   1. 前后端分离部署（推荐）"
+          echo "   2. 本地构建后手动上传"
+          echo ""
+          echo "📖 详见 DEPLOY_EDGEONE.md"
+          exit 1
