@@ -1,4 +1,7 @@
 export default {
+  functions: {
+    directory: 'node-functions',
+  },
   build: {
     external: [
       'better-sqlite3',

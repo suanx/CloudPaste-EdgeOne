@@ -126,3 +126,6 @@ node-functions/storage/
 node-functions/utils/
 node-functions/webdav/
 node-functions/workflows/
+
+# EdgeOne function backup test directory
+node-functions.test/
