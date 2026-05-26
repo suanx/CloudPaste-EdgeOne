@@ -10,30 +10,30 @@ export async function createApp() {
     const { Hono } = await import("hono");
     const { cors } = await import("hono/cors");
 
-    const adminRoutes = (await import("../backend/src/routes/adminRoutes.js")).default;
-    const adminFsIndexRoutes = (await import("../backend/src/routes/adminFsIndexRoutes.js")).default;
-    const apiKeyRoutes = (await import("../backend/src/routes/apiKeyRoutes.js")).default;
-    const { backupRoutes } = await import("../backend/src/routes/backupRoutes.js");
-    const storageConfigRoutes = (await import("../backend/src/routes/storageConfigRoutes.js")).default;
-    const systemRoutes = (await import("../backend/src/routes/systemRoutes.js")).default;
-    const mountRoutes = (await import("../backend/src/routes/mountRoutes.js")).default;
-    const webdavRoutes = (await import("../backend/src/routes/webdavRoutes.js")).default;
-    const fsRoutes = (await import("../backend/src/routes/fsRoutes.js")).default;
-    const fsMetaRoutes = (await import("../backend/src/routes/fsMetaRoutes.js")).default;
-    const { DbTables, ApiStatus, UserType } = await import("../backend/src/constants/index.js");
-    const { createErrorResponse, jsonOk } = await import("../backend/src/utils/common.js");
-    const filesRoutes = (await import("../backend/src/routes/filesRoutes.js")).default;
-    const shareUploadRoutes = (await import("../backend/src/routes/shareUploadRoutes.js")).default;
-    const pastesRoutes = (await import("../backend/src/routes/pastesRoutes.js")).default;
-    const fileViewRoutes = (await import("../backend/src/routes/fileViewRoutes.js")).default;
-    const { fsProxyRoutes } = await import("../backend/src/routes/fsProxyRoutes.js");
-    const { proxyLinkRoutes } = await import("../backend/src/routes/proxyLinkRoutes.js");
-    const scheduledRoutes = (await import("../backend/src/routes/scheduledRoutes.js")).default;
-    const { securityContext } = await import("../backend/src/security/middleware/securityContext.js");
-    const { withRepositories } = await import("../backend/src/utils/repositories.js");
-    const { errorBoundary } = await import("../backend/src/http/middlewares/errorBoundary.js");
-    const { normalizeError, sanitizeErrorMessageForClient } = await import("../backend/src/http/errors.js");
-    const { WEBDAV_BASE_PATH } = await import("../backend/src/webdav/auth/config/WebDAVConfig.js");
+    const adminRoutes = (await import("./backend/src/routes/adminRoutes.js")).default;
+    const adminFsIndexRoutes = (await import("./backend/src/routes/adminFsIndexRoutes.js")).default;
+    const apiKeyRoutes = (await import("./backend/src/routes/apiKeyRoutes.js")).default;
+    const { backupRoutes } = await import("./backend/src/routes/backupRoutes.js");
+    const storageConfigRoutes = (await import("./backend/src/routes/storageConfigRoutes.js")).default;
+    const systemRoutes = (await import("./backend/src/routes/systemRoutes.js")).default;
+    const mountRoutes = (await import("./backend/src/routes/mountRoutes.js")).default;
+    const webdavRoutes = (await import("./backend/src/routes/webdavRoutes.js")).default;
+    const fsRoutes = (await import("./backend/src/routes/fsRoutes.js")).default;
+    const fsMetaRoutes = (await import("./backend/src/routes/fsMetaRoutes.js")).default;
+    const { DbTables, ApiStatus, UserType } = await import("./backend/src/constants/index.js");
+    const { createErrorResponse, jsonOk } = await import("./backend/src/utils/common.js");
+    const filesRoutes = (await import("./backend/src/routes/filesRoutes.js")).default;
+    const shareUploadRoutes = (await import("./backend/src/routes/shareUploadRoutes.js")).default;
+    const pastesRoutes = (await import("./backend/src/routes/pastesRoutes.js")).default;
+    const fileViewRoutes = (await import("./backend/src/routes/fileViewRoutes.js")).default;
+    const { fsProxyRoutes } = await import("./backend/src/routes/fsProxyRoutes.js");
+    const { proxyLinkRoutes } = await import("./backend/src/routes/proxyLinkRoutes.js");
+    const scheduledRoutes = (await import("./backend/src/routes/scheduledRoutes.js")).default;
+    const { securityContext } = await import("./backend/src/security/middleware/securityContext.js");
+    const { withRepositories } = await import("./backend/src/utils/repositories.js");
+    const { errorBoundary } = await import("./backend/src/http/middlewares/errorBoundary.js");
+    const { normalizeError, sanitizeErrorMessageForClient } = await import("./backend/src/http/errors.js");
+    const { WEBDAV_BASE_PATH } = await import("./backend/src/webdav/auth/config/WebDAVConfig.js");
 
     const getTimeSource = () => {
       if (typeof performance !== "undefined" && typeof performance.now === "function") {
